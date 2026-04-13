@@ -1,8 +1,7 @@
-// app/Http/Controllers/ProductController.php
+
 <?php
-
 namespace App\Http\Controllers\Api;
-
+use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\Hotel;
 use Illuminate\Http\Request;
