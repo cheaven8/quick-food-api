@@ -1,4 +1,3 @@
-
 <?php
 namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
@@ -87,14 +86,14 @@ class ProductController extends Controller
     {
         $user = $request->user();
         
-        if (!$user->hotel_id) {
+        if (!$user->hotelProfile->id) {
             return response()->json([
                 'success' => false,
                 'message' => 'Hotel not found'
             ], 404);
         }
         
-        $products = Product::where('hotel_id', $user->hotel_id)
+        $products = Product::where('hotel_id', $user->hotelProfile->id)
             ->orderBy('category')
             ->orderBy('name')
             ->get();
@@ -108,63 +107,36 @@ class ProductController extends Controller
 
     // Create new product (Hotel only)
     public function store(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string|max:1000',
-            'price' => 'required|numeric|min:0',
-            'preparation_time' => 'required|integer|min:1|max:180',
-            'category' => 'required|string|max:100',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'is_available' => 'boolean',
-            'is_featured' => 'boolean',
-            'ingredients' => 'nullable|string',
-            'calories' => 'nullable|integer|min:0',
-        ]);
+{
+    $request->validate([
+        'name' => 'required',
+        'price' => 'required',
+        'category' => 'required',
+        'preparation_time' => 'required'
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
+    $user = $request->user();
 
-        $user = $request->user();
-        
-        if (!$user->hotel_id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Hotel not found'
-            ], 404);
-        }
-        
-        // Handle image upload
-        $imagePath = null;
-        if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('products', 'public');
-        }
-
-        $product = Product::create([
-            'hotel_id' => $user->hotel_id,
-            'name' => $request->name,
-            'description' => $request->description,
-            'price' => $request->price,
-            'preparation_time' => $request->preparation_time,
-            'category' => $request->category,
-            'image' => $imagePath,
-            'is_available' => $request->is_available ?? true,
-            'is_featured' => $request->is_featured ?? false,
-            'ingredients' => $request->ingredients,
-            'calories' => $request->calories,
-        ]);
-
+    if (!$user->hotelProfile) {
         return response()->json([
-            'success' => true,
-            'data' => $product,
-            'message' => 'Product created successfully'
-        ], 201);
+            'message' => 'Hotel profile not found'
+        ], 404);
     }
 
+    $product = Product::create([
+        'hotel_id' => $user->hotelProfile->id,
+        'name' => $request->name,
+        'price' => $request->price,
+        'category' => $request->category,
+        'preparation_time' => $request->preparation_time,
+        'description' => $request->description
+    ]);
+
+    return response()->json([
+        'success' => true,
+        'data' => $product
+    ]);
+}
     // Update product (Hotel only)
     public function update(Request $request, $id)
     {
@@ -172,7 +144,7 @@ class ProductController extends Controller
         $user = $request->user();
 
         // Check if product belongs to the hotel
-        if ($product->hotel_id !== $user->hotel_id) {
+        if ($product->hotel_id !== $user->hotelProfile->id) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized - This product does not belong to your hotel'
@@ -227,7 +199,7 @@ class ProductController extends Controller
         $user = $request->user();
 
         // Check if product belongs to the hotel
-        if ($product->hotel_id !== $user->hotel_id) {
+        if ($product->hotel_id !== $user->hotelProfile->id) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized - This product does not belong to your hotel'
@@ -253,7 +225,7 @@ class ProductController extends Controller
         $product = Product::findOrFail($id);
         $user = $request->user();
 
-        if ($product->hotel_id !== $user->hotel_id) {
+        if ($product->hotel_id !== $user->hotelProfile->id) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized'
@@ -296,7 +268,7 @@ class ProductController extends Controller
             $product = Product::find($productData['id']);
             
             // Check ownership
-            if ($product->hotel_id !== $user->hotel_id) {
+            if ($product->hotel_id !== $user->hotelProfile->id) {
                 $errors[] = "Product ID {$product->id} does not belong to your hotel";
                 continue;
             }
